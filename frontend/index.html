@@ -5,36 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>链上留言板 MessageBoard</title>
     <link rel="stylesheet" href="./styles.css" />
-    <script src="https://cdn.jsdelivr.net/npm/ethers@6.12.0/dist/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" defer></script>
   </head>
   <body>
-    <div class="container">
-      <header class="header">
-        <h1>链上留言板</h1>
-        <div class="controls">
-          <input id="contractAddress" type="text" placeholder="合约地址 0x..." />
-          <button id="setAddressBtn">设置合约地址</button>
-          <button id="connectBtn">连接钱包</button>
+    <nav class="navbar">
+      <div class="nav-inner">
+        <div class="brand">MessageBoard</div>
+        <div class="nav-actions">
+          <button id="connectBtn" class="btn primary">连接钱包</button>
+        </div>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-inner">
+        <h1 class="hero-title">写下此刻的灵感</h1>
+        <p class="hero-sub">简单、轻盈、可信的链上留言体验。</p>
+        <div class="addr-setter">
+          <input id="contractAddress" class="input" type="text" placeholder="合约地址 0x..." />
+          <button id="setAddressBtn" class="btn">设置合约地址</button>
         </div>
         <div class="status" id="statusBox"></div>
-      </header>
+      </div>
+    </section>
 
-      <section class="composer">
-        <textarea id="contentInput" rows="3" placeholder="说点什么...（上链，注意隐私）"></textarea>
+    <main class="container">
+      <section class="composer card">
+        <textarea id="contentInput" rows="4" class="textarea" placeholder="说点什么...（上链，注意隐私）"></textarea>
         <div class="composer-actions">
-          <input id="parentIdInput" type="number" min="0" placeholder="可选：回复的 parentId（默认 0）" />
-          <button id="postBtn">发帖</button>
+          <input id="parentIdInput" class="input" type="number" min="0" placeholder="可选：回复的 parentId（默认 0）" />
+          <button id="postBtn" class="btn primary">发帖</button>
         </div>
         <div class="hints" id="configHints"></div>
       </section>
 
-      <section class="list">
+      <section class="list card">
         <ul id="messageList"></ul>
-        <button id="loadMoreBtn" class="load-more">加载更多</button>
+        <button id="loadMoreBtn" class="btn">加载更多</button>
       </section>
-    </div>
+    </main>
 
-    <script src="./index.js"></script>
+    <script src="./index.js" defer></script>
   </body>
   </html>
 

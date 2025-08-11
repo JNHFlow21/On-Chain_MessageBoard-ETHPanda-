@@ -1,9 +1,9 @@
 // Minimal frontend for MessageBoard
-// Requires MetaMask and Ethers v6 UMD via CDN
+// Switched to Ethers v5 for better MetaMask interop
 
 const state = {
-  provider: null,
-  signer: null,
+  provider: null, // ethers.providers.Web3Provider
+  signer: null,   // ethers.Signer
   account: null,
   contract: null,
   contractAddress: "",
@@ -40,64 +40,101 @@ const state = {
     { "type": "function", "name": "softDelete", "inputs": [{"type":"uint256","name":"id"}], "outputs": [], "stateMutability": "nonpayable" },
   ],
   page: { start: 0, step: 10, finished: false },
-  lastTotal: 0n,
+  lastTotal: ethers.BigNumber.from(0),
   pollTimer: null,
+  connecting: false,
 };
 
 const $ = (id) => document.getElementById(id);
 const fmtAddr = (a) => a ? `${a.slice(0,6)}...${a.slice(-4)}` : "";
 const setStatus = (t) => ($("statusBox").textContent = t);
+function updateUiConnected(connected) {
+  const btn = document.getElementById('connectBtn');
+  if (btn) btn.textContent = connected ? '已连接' : '连接钱包';
+}
+function updateConnectBtnDisabled(disabled) {
+  const btn = document.getElementById('connectBtn');
+  if (btn) btn.disabled = !!disabled;
+}
+
+function getInjectedEthereum() {
+  const eth = window.ethereum;
+  if (!eth) return null;
+  if (Array.isArray(eth.providers) && eth.providers.length > 0) {
+    const mm = eth.providers.find((p) => p.isMetaMask);
+    return mm || eth.providers[0];
+  }
+  return eth;
+}
 
 async function ensureProvider() {
-  if (!window.ethereum) throw new Error("请安装 MetaMask 扩展");
-  if (!state.provider) state.provider = new ethers.BrowserProvider(window.ethereum);
+  const injected = getInjectedEthereum();
+  if (!injected) throw new Error("未检测到钱包注入。请检查 MetaMask 是否已对本网站启用访问权限。");
+  if (!state.provider) state.provider = new ethers.providers.Web3Provider(injected, 'any');
   return state.provider;
 }
 
 async function connectWallet() {
-  await ensureProvider();
+  if (!getInjectedEthereum()) {
+    alert('未检测到钱包注入。请在浏览器扩展管理中将 MetaMask 的“站点访问”设置为“在所有网站”，或点击右上角扩展图标为本页面开启访问。');
+    return;
+  }
+  if (state.connecting) return;
+  state.connecting = true; updateConnectBtnDisabled(true); setStatus('正在请求钱包授权...');
+  const tipTimer = setTimeout(() => {
+    if (state.connecting) setStatus('如果未弹出 MetaMask，请点击浏览器右上角扩展图标，允许本网站访问钱包');
+  }, 8000);
   try {
-    // 直接调用 MetaMask 原生 API，确保触发弹窗
-    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const injected = getInjectedEthereum();
+    const accounts = await injected.request({ method: 'eth_requestAccounts' });
+    await ensureProvider();
     if (!accounts || accounts.length === 0) throw new Error('未授权账户');
-    state.account = ethers.getAddress(accounts[0]);
-    state.signer = await state.provider.getSigner();
+    state.account = ethers.utils.getAddress(accounts[0]);
+    state.signer = state.provider.getSigner();
     setStatus(`已连接：${fmtAddr(state.account)}`);
+    updateUiConnected(true);
     bindEthereumEvents();
   } catch (e) {
     console.error(e);
-    alert(parseEthersError(e));
+    setStatus(parseEthersError(e));
   }
+  clearTimeout(tipTimer);
+  state.connecting = false; updateConnectBtnDisabled(false);
 }
 
 async function restoreConnectionIfAny() {
-  if (!window.ethereum) return;
+  if (!getInjectedEthereum()) return;
   await ensureProvider();
   try {
-    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    const injected = getInjectedEthereum();
+    const accounts = await injected.request({ method: 'eth_accounts' });
     if (accounts && accounts.length > 0) {
-      state.account = ethers.getAddress(accounts[0]);
-      state.signer = await state.provider.getSigner();
+      state.account = ethers.utils.getAddress(accounts[0]);
+      state.signer = state.provider.getSigner();
       setStatus(`已连接：${fmtAddr(state.account)}`);
+      updateUiConnected(true);
       bindEthereumEvents();
     }
   } catch {}
 }
 
 function bindEthereumEvents() {
-  if (!window.ethereum || bindEthereumEvents._bound) return;
-  window.ethereum.on?.('accountsChanged', async (accounts) => {
+  const injected = getInjectedEthereum();
+  if (!injected || bindEthereumEvents._bound) return;
+  injected.on?.('accountsChanged', async (accounts) => {
     if (!accounts || accounts.length === 0) {
       state.account = null; state.signer = null;
       setStatus('钱包未连接');
+      updateUiConnected(false);
       return;
     }
-    state.account = ethers.getAddress(accounts[0]);
-    state.signer = await state.provider.getSigner();
+    state.account = ethers.utils.getAddress(accounts[0]);
+    state.signer = state.provider.getSigner();
     setStatus(`已连接：${fmtAddr(state.account)}`);
+    updateUiConnected(true);
     refreshFromStart();
   });
-  window.ethereum.on?.('chainChanged', () => {
+  injected.on?.('chainChanged', () => {
     // 切换网络后刷新读取
     refreshFromStart();
   });
@@ -105,12 +142,16 @@ function bindEthereumEvents() {
 }
 
 function setContractAddress(addr) {
-  if (!addr || !ethers.isAddress(addr)) {
-    alert("请输入正确的合约地址");
+  if (!addr || !ethers.utils.isAddress(addr)) {
+    setStatus("请输入正确的合约地址");
     return;
   }
-  state.contractAddress = ethers.getAddress(addr);
-  state.contract = new ethers.Contract(state.contractAddress, state.abi, state.signer || state.provider);
+  if (!state.provider && getInjectedEthereum()) {
+    try { state.provider = new ethers.providers.Web3Provider(getInjectedEthereum(), 'any'); } catch {}
+  }
+  state.contractAddress = ethers.utils.getAddress(addr);
+  const reader = state.signer || state.provider;
+  state.contract = new ethers.Contract(state.contractAddress, state.abi, reader);
   setStatus(`已设置合约：${state.contractAddress}`);
   state.page = { start: 0, step: 10, finished: false };
   $("messageList").innerHTML = "";
@@ -118,7 +159,7 @@ function setContractAddress(addr) {
   subscribeEvents();
   startPolling();
   loadConfigHints().then(async () => {
-    try { state.lastTotal = BigInt(await state.contract.total()); } catch {}
+    try { state.lastTotal = ethers.BigNumber.from(await state.contract.total()); } catch {}
     await loadNextPage();
   }).catch(console.error);
 }
@@ -196,12 +237,13 @@ function refreshFromStart() {
 
 async function postMessage() {
   if (!state.signer) {
-    alert("请先连接钱包");
-    return;
+    // 主动尝试连接，避免弹窗遮挡阻断流程
+    await connectWallet();
+    if (!state.signer) return;
   }
   const content = $("contentInput").value.trim();
   const parentIdStr = $("parentIdInput").value.trim();
-  const parentId = parentIdStr ? BigInt(parentIdStr) : 0n;
+  const parentId = parentIdStr ? ethers.BigNumber.from(parentIdStr) : ethers.BigNumber.from(0);
   if (!content) { alert("内容不能为空"); return; }
   const fee = await state.contract.postFee();
   await txWrap(() => state.contract.connect(state.signer).post(content, parentId, { value: fee }));
@@ -218,8 +260,7 @@ async function txWrap(fn) {
     setStatus("已上链");
   } catch (e) {
     console.error(e);
-    alert(parseEthersError(e));
-    setStatus("交易失败");
+    setStatus(parseEthersError(e));
   }
 }
 
@@ -268,8 +309,8 @@ function startPolling(intervalMs = 5000) {
   if (!state.contract) return;
   state.pollTimer = setInterval(async () => {
     try {
-      const t = BigInt(await state.contract.total());
-      if (t !== state.lastTotal) {
+      const t = ethers.BigNumber.from(await state.contract.total());
+      if (!t.eq(state.lastTotal)) {
         state.lastTotal = t;
         refreshFromStart();
       }
