@@ -49,17 +49,59 @@ const fmtAddr = (a) => a ? `${a.slice(0,6)}...${a.slice(-4)}` : "";
 const setStatus = (t) => ($("statusBox").textContent = t);
 
 async function ensureProvider() {
-  if (!window.ethereum) throw new Error("请安装 MetaMask");
-  state.provider = new ethers.BrowserProvider(window.ethereum);
+  if (!window.ethereum) throw new Error("请安装 MetaMask 扩展");
+  if (!state.provider) state.provider = new ethers.BrowserProvider(window.ethereum);
   return state.provider;
 }
 
 async function connectWallet() {
   await ensureProvider();
-  const accounts = await state.provider.send("eth_requestAccounts", []);
-  state.account = ethers.getAddress(accounts[0]);
-  state.signer = await state.provider.getSigner();
-  setStatus(`已连接：${fmtAddr(state.account)}`);
+  try {
+    // 直接调用 MetaMask 原生 API，确保触发弹窗
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    if (!accounts || accounts.length === 0) throw new Error('未授权账户');
+    state.account = ethers.getAddress(accounts[0]);
+    state.signer = await state.provider.getSigner();
+    setStatus(`已连接：${fmtAddr(state.account)}`);
+    bindEthereumEvents();
+  } catch (e) {
+    console.error(e);
+    alert(parseEthersError(e));
+  }
+}
+
+async function restoreConnectionIfAny() {
+  if (!window.ethereum) return;
+  await ensureProvider();
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    if (accounts && accounts.length > 0) {
+      state.account = ethers.getAddress(accounts[0]);
+      state.signer = await state.provider.getSigner();
+      setStatus(`已连接：${fmtAddr(state.account)}`);
+      bindEthereumEvents();
+    }
+  } catch {}
+}
+
+function bindEthereumEvents() {
+  if (!window.ethereum || bindEthereumEvents._bound) return;
+  window.ethereum.on?.('accountsChanged', async (accounts) => {
+    if (!accounts || accounts.length === 0) {
+      state.account = null; state.signer = null;
+      setStatus('钱包未连接');
+      return;
+    }
+    state.account = ethers.getAddress(accounts[0]);
+    state.signer = await state.provider.getSigner();
+    setStatus(`已连接：${fmtAddr(state.account)}`);
+    refreshFromStart();
+  });
+  window.ethereum.on?.('chainChanged', () => {
+    // 切换网络后刷新读取
+    refreshFromStart();
+  });
+  bindEthereumEvents._bound = true;
 }
 
 function setContractAddress(addr) {
@@ -202,6 +244,7 @@ window.addEventListener("DOMContentLoaded", () => {
   $("setAddressBtn").onclick = () => setContractAddress($("contractAddress").value.trim());
   $("postBtn").onclick = postMessage;
   $("loadMoreBtn").onclick = loadNextPage;
+  restoreConnectionIfAny();
 });
 
 // Events & polling
