@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>链上留言板 MessageBoard</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.12.0/dist/ethers.umd.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <h1>链上留言板</h1>
+        <div class="controls">
+          <input id="contractAddress" type="text" placeholder="合约地址 0x..." />
+          <button id="setAddressBtn">设置合约地址</button>
+          <button id="connectBtn">连接钱包</button>
+        </div>
+        <div class="status" id="statusBox"></div>
+      </header>
+
+      <section class="composer">
+        <textarea id="contentInput" rows="3" placeholder="说点什么...（上链，注意隐私）"></textarea>
+        <div class="composer-actions">
+          <input id="parentIdInput" type="number" min="0" placeholder="可选：回复的 parentId（默认 0）" />
+          <button id="postBtn">发帖</button>
+        </div>
+        <div class="hints" id="configHints"></div>
+      </section>
+
+      <section class="list">
+        <ul id="messageList"></ul>
+        <button id="loadMoreBtn" class="load-more">加载更多</button>
+      </section>
+    </div>
+
+    <script src="./index.js"></script>
+  </body>
+  </html>
+
+

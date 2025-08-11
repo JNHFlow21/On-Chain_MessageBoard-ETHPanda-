@@ -1,0 +1,49 @@
+:root {
+  --bg: #0b0f1a;
+  --card: #11182a;
+  --muted: #8ba1c1;
+  --text: #e6eefc;
+  --accent: #4f8cff;
+  --danger: #f56c6c;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  background: radial-gradient(1200px 800px at 20% -10%, #192036 0%, var(--bg) 40%);
+  color: var(--text);
+}
+.container { max-width: 860px; margin: 0 auto; padding: 24px; }
+
+.header { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.header h1 { margin: 0; font-size: 24px; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.controls input {
+  flex: 1 1 260px; padding: 10px 12px; border-radius: 10px; border: 1px solid #22304d; background: var(--card); color: var(--text);
+}
+button {
+  padding: 10px 14px; border-radius: 10px; border: 1px solid #29437a; background: #132752; color: var(--text); cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+
+.status { color: var(--muted); font-size: 13px; }
+
+.composer { background: rgba(17, 24, 42, 0.5); border: 1px solid #1b2a47; padding: 12px; border-radius: 12px; display: flex; flex-direction: column; gap: 12px; }
+.composer textarea {
+  width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #1b2a47; background: var(--card); color: var(--text);
+}
+.composer-actions { display: flex; gap: 8px; align-items: center; }
+.composer-actions input { flex: 0 0 280px; padding: 8px 12px; border-radius: 10px; border: 1px solid #1b2a47; background: var(--card); color: var(--text); }
+.hints { color: var(--muted); font-size: 12px; }
+
+.list { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.list ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.item { border: 1px solid #1b2a47; background: rgba(19, 29, 51, 0.5); padding: 12px; border-radius: 12px; }
+.item .meta { color: var(--muted); font-size: 12px; display: flex; gap: 10px; margin-top: 6px; }
+.item .actions { display: flex; gap: 8px; margin-top: 10px; }
+.item .danger { border-color: #4b2a2a; background: #2a1111; color: #ffb5b5; }
+
+.load-more { align-self: center; }
+
+
